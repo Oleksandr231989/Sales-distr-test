@@ -1,11 +1,11 @@
 const config = {
-    powerBiUrl: "https://app.powerbi.com/view?r=eyJrIjoiZDgzMTE5NjAtMzgyNi00OGZlLWIxOWUtMDQwNDI1MDhiMGRhIiwidCI6IjZjZjFjYWUyLTZmNTgtNDA3YS04ZWY4LWNiZDY0MjMyYWIzYSIsImMiOjl9",
+    powerBiUrl: "POWER_BI_URL",  // Placeholder, to be replaced securely
     firebase: {
-        apiKey: "AIzaSyA-wHAQkA9fTM8VzuiqTG6mne7NHQv8cy4",
-            authDomain: "mayoly-28298.firebaseapp.com",
-            projectId: "mayoly-28298",
-            storageBucket: "mayoly-28298.appspot.com",
-            messagingSenderId: "321318380841",
-            appId: "1:321318380841:web:exampleappid"
+        apiKey: "FIREBASE_API_KEY",  // Placeholder
+        authDomain: "FIREBASE_AUTH_DOMAIN",
+        projectId: "FIREBASE_PROJECT_ID",
+        storageBucket: "FIREBASE_STORAGE_BUCKET",
+        messagingSenderId: "FIREBASE_MESSAGING_SENDER_ID",
+        appId: "FIREBASE_APP_ID"
     }
 };
