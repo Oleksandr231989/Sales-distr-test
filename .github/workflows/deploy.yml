@@ -1,14 +1,17 @@
 name: Deploy Web App
-
 on:
   push:
     branches: [ main ]  # Adjust branch name if needed
+
+permissions:
+  contents: write # This is important for GitHub Pages deployment
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
       
       - name: Generate config.js with secrets
         run: |
@@ -26,10 +29,9 @@ jobs:
           };
           EOF
       
-      # Add deployment step based on where you're hosting:
-      # For GitHub Pages:
       - name: Deploy to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: .  # Deploy entire repository content
-          # Additional configuration as neededEnter file contents here
+          folder: . # Deploy entire repository content
+          branch: gh-pages # The branch the action should deploy to
+          token: ${{ secrets.GITHUB_TOKEN }} # GitHub automatically creates this secret
