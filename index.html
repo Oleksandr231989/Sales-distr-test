@@ -92,6 +92,12 @@
             color: #333;
             margin-bottom: 20px;
         }
+        #debugInfo {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -105,6 +111,7 @@
         <input type="password" id="password" placeholder="Password" required>
         <button id="enterButton" onclick="login()">Enter</button>
         <div id="errorMessage">Incorrect login or password. Please try again or contact mayoly.reports@gmail.com</div>
+        <div id="debugInfo"></div>
     </div>
 
     <button id="logoutButton" onclick="logout()" style="display: none;">Log out</button>
@@ -115,18 +122,57 @@
     </iframe>
 
     <script>
+        // For debugging, display the config being used
+        try {
+            // Create a safe copy of config without exposing sensitive data
+            const configSummary = {
+                powerBiUrlDefined: typeof config.powerBiUrl !== 'undefined',
+                firebaseConfigDefined: typeof config.firebase !== 'undefined',
+                firebaseKeysDefined: config.firebase ? {
+                    apiKeyDefined: typeof config.firebase.apiKey !== 'undefined',
+                    authDomainDefined: typeof config.firebase.authDomain !== 'undefined',
+                    projectIdDefined: typeof config.firebase.projectId !== 'undefined'
+                } : 'Firebase config not defined'
+            };
+            console.log('Config summary:', configSummary);
+            
+            // Only show first few characters of the auth domain for verification
+            if (config.firebase && config.firebase.authDomain) {
+                document.getElementById('debugInfo').textContent = 
+                    `Auth Domain: ${config.firebase.authDomain.substring(0, 8)}...`;
+            }
+        } catch (e) {
+            console.error('Error accessing config:', e);
+            document.getElementById('debugInfo').textContent = 'Config error: ' + e.message;
+        }
+
         // Set iframe source
         document.getElementById('reportContainer').src = config.powerBiUrl;
 
-        // Initialize Firebase
-        firebase.initializeApp(config.firebase);
+        try {
+            // Initialize Firebase
+            console.log('Initializing Firebase...');
+            firebase.initializeApp(config.firebase);
+            console.log('Firebase initialized successfully');
+            
+            // Check if auth is available on firebase
+            if (!firebase.auth) {
+                console.error('Firebase auth is not available');
+                document.getElementById('debugInfo').textContent += '\nFirebase auth not available';
+            }
+        } catch (e) {
+            console.error('Firebase initialization error:', e);
+            document.getElementById('debugInfo').textContent += '\nFirebase init error: ' + e.message;
+        }
 
         firebase.auth().onAuthStateChanged((user) => {
+            console.log('Auth state changed:', user ? 'User signed in' : 'No user');
             if (user) {
                 document.getElementById('loginForm').style.display = 'none';
                 document.getElementById('reportContainer').style.display = 'block';
                 document.getElementById('logoutButton').style.display = 'block';
                 document.getElementById('logoContainer').style.display = 'none';
+                console.log('User email:', user.email);
             } else {
                 document.getElementById('loginForm').style.display = 'block';
                 document.getElementById('reportContainer').style.display = 'none';
@@ -139,20 +185,30 @@
         function login() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+            
+            console.log('Login attempt with email:', email);
+            document.getElementById('debugInfo').textContent = 'Attempting login...';
 
             firebase.auth().signInWithEmailAndPassword(email, password)
-                .then(() => {
-                    console.log("Login successful");
+                .then((userCredential) => {
+                    console.log('Login successful:', userCredential.user.email);
                     document.getElementById('errorMessage').style.display = 'none';
+                    document.getElementById('debugInfo').textContent = 'Login successful!';
                 })
                 .catch((error) => {
+                    console.error('Login error:', error.code, error.message);
                     document.getElementById('errorMessage').style.display = 'block';
+                    document.getElementById('debugInfo').textContent = 
+                        `Login failed: ${error.code} - ${error.message}`;
                 });
         }
 
         function logout() {
+            console.log('Logout attempt');
             firebase.auth().signOut().then(() => {
-                console.log("Logout successful");
+                console.log('Logout successful');
+            }).catch((error) => {
+                console.error('Logout error:', error);
             });
         }
 
@@ -160,6 +216,17 @@
             if (event.key === "Enter") {
                 document.getElementById("enterButton").click();
             }
+        });
+        
+        // Additional diagnostics
+        window.addEventListener('load', function() {
+            // Check if all scripts loaded properly
+            const scripts = ['firebase-app-compat.js', 'firebase-auth-compat.js', 'config.js'];
+            scripts.forEach(script => {
+                const success = Array.from(document.getElementsByTagName('script'))
+                    .some(s => s.src && s.src.includes(script));
+                console.log(`Script ${script} loaded: ${success}`);
+            });
         });
     </script>
 </body>
