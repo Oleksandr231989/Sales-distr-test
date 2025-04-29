@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <title>Power BI Report</title>
     <link rel="icon" type="image/png" href="icon.png">
+    <!-- Load Firebase SDK scripts -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js"></script>
+    <!-- Load config.js -->
     <script src="config.js"></script>
     <style>
         body {
@@ -122,115 +124,129 @@
     </iframe>
 
     <script>
-        // Проверяем, загрузился ли config.js
-        if (typeof config === 'undefined') {
-            console.error('config.js not loaded');
-            document.getElementById('debugInfo').textContent = 'Error: config.js not loaded. Please check deployment settings.';
-            throw new Error('config.js not loaded');
-        }
-
-        // Для отладки выводим информацию о конфигурации (без чувствительных данных)
-        try {
-            const configSummary = {
-                powerBiUrlDefined: typeof config.powerBiUrl !== 'undefined',
-                firebaseConfigDefined: typeof config.firebase !== 'undefined',
-                firebaseKeysDefined: config.firebase ? {
-                    apiKeyDefined: typeof config.firebase.apiKey !== 'undefined',
-                    authDomainDefined: typeof config.firebase.authDomain !== 'undefined',
-                    projectIdDefined: typeof config.firebase.projectId !== 'undefined'
-                } : 'Firebase config not defined'
-            };
-            console.log('Config summary:', configSummary);
-            
-            if (config.firebase && config.firebase.authDomain) {
-                document.getElementById('debugInfo').textContent = 
-                    `Auth Domain: ${config.firebase.authDomain.substring(0, 8)}...`;
+        // Wait for the DOM to load before running the script
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if Firebase SDK is loaded
+            if (typeof firebase === 'undefined') {
+                console.error('Firebase SDK not loaded');
+                document.getElementById('debugInfo').textContent = 'Error: Firebase SDK not loaded. Please check script sources.';
+                return;
             }
-        } catch (e) {
-            console.error('Error accessing config:', e);
-            document.getElementById('debugInfo').textContent = 'Config error: ' + e.message;
-        }
 
-        // Устанавливаем источник для iframe
-        document.getElementById('reportContainer').src = config.powerBiUrl;
-
-        // Инициализация Firebase
-        let auth;
-        try {
-            console.log('Initializing Firebase...');
-            const firebaseApp = firebase.initializeApp(config.firebase);
-            auth = firebase.auth(firebaseApp);
-            console.log('Firebase initialized successfully');
-        } catch (e) {
-            console.error('Firebase initialization error:', e);
-            document.getElementById('debugInfo').textContent += '\nFirebase init error: ' + e.message;
-            throw e;
-        }
-
-        // Отслеживаем изменение состояния аутентификации
-        auth.onAuthStateChanged((user) => {
-            console.log('Auth state changed:', user ? 'User signed in' : 'No user');
-            if (user) {
-                document.getElementById('loginForm').style.display = 'none';
-                document.getElementById('reportContainer').style.display = 'block';
-                document.getElementById('logoutButton').style.display = 'block';
-                document.getElementById('logoContainer').style.display = 'none';
-                console.log('User email:', user.email);
-            } else {
-                document.getElementById('loginForm').style.display = 'block';
-                document.getElementById('reportContainer').style.display = 'none';
-                document.getElementById('logoutButton').style.display = 'none';
-                document.getElementById('logoContainer').style.display = 'block';
-                document.getElementById('errorMessage').style.display = 'none';
+            // Check if config.js is loaded
+            if (typeof config === 'undefined') {
+                console.error('config.js not loaded');
+                document.getElementById('debugInfo').textContent = 'Error: config.js not loaded. Please check deployment settings.';
+                return;
             }
-        });
 
-        // Функция входа
-        function login() {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            
-            console.log('Login attempt with email:', email);
-            document.getElementById('debugInfo').textContent = 'Attempting login...';
+            // Debug config.js contents (without exposing sensitive data)
+            try {
+                const configSummary = {
+                    powerBiUrlDefined: typeof config.powerBiUrl !== 'undefined',
+                    firebaseConfigDefined: typeof config.firebase !== 'undefined',
+                    firebaseKeysDefined: config.firebase ? {
+                        apiKeyDefined: typeof config.firebase.apiKey !== 'undefined',
+                        authDomainDefined: typeof config.firebase.authDomain !== 'undefined',
+                        projectIdDefined: typeof config.firebase.projectId !== 'undefined'
+                    } : 'Firebase config not defined'
+                };
+                console.log('Config summary:', configSummary);
 
-            auth.signInWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                    console.log('Login successful:', userCredential.user.email);
-                    document.getElementById('errorMessage').style.display = 'none';
-                    document.getElementById('debugInfo').textContent = 'Login successful!';
-                })
-                .catch((error) => {
-                    console.error('Login error:', error.code, error.message);
-                    document.getElementById('errorMessage').style.display = 'block';
+                if (config.firebase && config.firebase.authDomain) {
                     document.getElementById('debugInfo').textContent = 
-                        `Login failed: ${error.code} - ${error.message}`;
-                });
-        }
-
-        // Функция выхода
-        function logout() {
-            console.log('Logout attempt');
-            auth.signOut().then(() => {
-                console.log('Logout successful');
-            }).catch((error) => {
-                console.error('Logout error:', error);
-            });
-        }
-
-        // Вход по нажатию Enter
-        document.addEventListener("keypress", function(event) {
-            if (event.key === "Enter") {
-                document.getElementById("enterButton").click();
+                        `Auth Domain: ${config.firebase.authDomain.substring(0, 8)}...`;
+                } else {
+                    document.getElementById('debugInfo').textContent = 'Error: Firebase authDomain not defined in config.js';
+                    return;
+                }
+            } catch (e) {
+                console.error('Error accessing config:', e);
+                document.getElementById('debugInfo').textContent = 'Config error: ' + e.message;
+                return;
             }
-        });
 
-        // Дополнительная диагностика загрузки скриптов
-        window.addEventListener('load', function() {
-            const scripts = ['firebase-app.js', 'firebase-auth.js', 'config.js'];
-            scripts.forEach(script => {
-                const success = Array.from(document.getElementsByTagName('script'))
-                    .some(s => s.src && s.src.includes(script));
-                console.log(`Script ${script} loaded: ${success}`);
+            // Set iframe source
+            document.getElementById('reportContainer').src = config.powerBiUrl;
+
+            // Initialize Firebase
+            let auth;
+            try {
+                console.log('Initializing Firebase...');
+                const firebaseApp = firebase.initializeApp(config.firebase);
+                auth = firebase.auth(firebaseApp);
+                console.log('Firebase initialized successfully');
+            } catch (e) {
+                console.error('Firebase initialization error:', e);
+                document.getElementById('debugInfo').textContent += '\nFirebase init error: ' + e.message;
+                return;
+            }
+
+            // Monitor auth state changes
+            auth.onAuthStateChanged((user) => {
+                console.log('Auth state changed:', user ? 'User signed in' : 'No user');
+                if (user) {
+                    document.getElementById('loginForm').style.display = 'none';
+                    document.getElementById('reportContainer').style.display = 'block';
+                    document.getElementById('logoutButton').style.display = 'block';
+                    document.getElementById('logoContainer').style.display = 'none';
+                    console.log('User email:', user.email);
+                } else {
+                    document.getElementById('loginForm').style.display = 'block';
+                    document.getElementById('reportContainer').style.display = 'none';
+                    document.getElementById('logoutButton').style.display = 'none';
+                    document.getElementById('logoContainer').style.display = 'block';
+                    document.getElementById('errorMessage').style.display = 'none';
+                }
+            });
+
+            // Login function
+            window.login = function() {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                console.log('Login attempt with email:', email);
+                document.getElementById('debugInfo').textContent = 'Attempting login...';
+
+                auth.signInWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        console.log('Login successful:', userCredential.user.email);
+                        document.getElementById('errorMessage').style.display = 'none';
+                        document.getElementById('debugInfo').textContent = 'Login successful!';
+                    })
+                    .catch((error) => {
+                        console.error('Login error:', error.code, error.message);
+                        document.getElementById('errorMessage').style.display = 'block';
+                        document.getElementById('debugInfo').textContent = 
+                            `Login failed: ${error.code} - ${error.message}`;
+                    });
+            };
+
+            // Logout function
+            window.logout = function() {
+                console.log('Logout attempt');
+                auth.signOut().then(() => {
+                    console.log('Logout successful');
+                }).catch((error) => {
+                    console.error('Logout error:', error);
+                });
+            };
+
+            // Handle Enter key for login
+            document.addEventListener("keypress", function(event) {
+                if (event.key === "Enter") {
+                    document.getElementById("enterButton").click();
+                }
+            });
+
+            // Debug script loading
+            window.addEventListener('load', function() {
+                const scripts = ['firebase-app.js', 'firebase-auth.js', 'config.js'];
+                scripts.forEach(script => {
+                    const success = Array.from(document.getElementsByTagName('script'))
+                        .some(s => s.src && s.src.includes(script));
+                    console.log(`Script ${script} loaded: ${success}`);
+                });
             });
         });
     </script>
