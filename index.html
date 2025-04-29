@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <title>Power BI Report</title>
     <link rel="icon" type="image/png" href="icon.png">
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
+    <!-- Подключаем модульную версию Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js"></script>
     <script src="config.js"></script>
     <style>
         body {
@@ -122,9 +123,15 @@
     </iframe>
 
     <script>
-        // For debugging, display the config being used
+        // Проверяем, загрузился ли config.js
+        if (typeof config === 'undefined') {
+            console.error('config.js not loaded');
+            document.getElementById('debugInfo').textContent = 'Error: config.js not loaded';
+            throw new Error('config.js not loaded');
+        }
+
+        // Для отладки выводим информацию о конфигурации (без чувствительных данных)
         try {
-            // Create a safe copy of config without exposing sensitive data
             const configSummary = {
                 powerBiUrlDefined: typeof config.powerBiUrl !== 'undefined',
                 firebaseConfigDefined: typeof config.firebase !== 'undefined',
@@ -136,7 +143,7 @@
             };
             console.log('Config summary:', configSummary);
             
-            // Only show first few characters of the auth domain for verification
+            // Показываем часть authDomain для проверки
             if (config.firebase && config.firebase.authDomain) {
                 document.getElementById('debugInfo').textContent = 
                     `Auth Domain: ${config.firebase.authDomain.substring(0, 8)}...`;
@@ -146,26 +153,24 @@
             document.getElementById('debugInfo').textContent = 'Config error: ' + e.message;
         }
 
-        // Set iframe source
+        // Устанавливаем источник для iframe
         document.getElementById('reportContainer').src = config.powerBiUrl;
 
+        // Инициализация Firebase
+        let auth;
         try {
-            // Initialize Firebase
             console.log('Initializing Firebase...');
-            firebase.initializeApp(config.firebase);
+            const firebaseApp = firebase.initializeApp(config.firebase);
+            auth = firebase.auth(firebaseApp);
             console.log('Firebase initialized successfully');
-            
-            // Check if auth is available on firebase
-            if (!firebase.auth) {
-                console.error('Firebase auth is not available');
-                document.getElementById('debugInfo').textContent += '\nFirebase auth not available';
-            }
         } catch (e) {
             console.error('Firebase initialization error:', e);
             document.getElementById('debugInfo').textContent += '\nFirebase init error: ' + e.message;
+            throw e; // Прерываем выполнение, если Firebase не инициализирован
         }
 
-        firebase.auth().onAuthStateChanged((user) => {
+        // Отслеживаем изменение состояния аутентификации
+        auth.onAuthStateChanged((user) => {
             console.log('Auth state changed:', user ? 'User signed in' : 'No user');
             if (user) {
                 document.getElementById('loginForm').style.display = 'none';
@@ -182,6 +187,7 @@
             }
         });
 
+        // Функция входа
         function login() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
@@ -189,7 +195,7 @@
             console.log('Login attempt with email:', email);
             document.getElementById('debugInfo').textContent = 'Attempting login...';
 
-            firebase.auth().signInWithEmailAndPassword(email, password)
+            auth.signInWithEmailAndPassword(email, password)
                 .then((userCredential) => {
                     console.log('Login successful:', userCredential.user.email);
                     document.getElementById('errorMessage').style.display = 'none';
@@ -203,25 +209,26 @@
                 });
         }
 
+        // Функция выхода
         function logout() {
             console.log('Logout attempt');
-            firebase.auth().signOut().then(() => {
+            auth.signOut().then(() => {
                 console.log('Logout successful');
             }).catch((error) => {
                 console.error('Logout error:', error);
             });
         }
 
+        // Вход по нажатию Enter
         document.addEventListener("keypress", function(event) {
             if (event.key === "Enter") {
                 document.getElementById("enterButton").click();
             }
         });
-        
-        // Additional diagnostics
+
+        // Дополнительная диагностика загрузки скриптов
         window.addEventListener('load', function() {
-            // Check if all scripts loaded properly
-            const scripts = ['firebase-app-compat.js', 'firebase-auth-compat.js', 'config.js'];
+            const scripts = ['firebase-app.js', 'firebase-auth.js', 'config.js'];
             scripts.forEach(script => {
                 const success = Array.from(document.getElementsByTagName('script'))
                     .some(s => s.src && s.src.includes(script));
