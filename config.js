@@ -1,5 +1,5 @@
 const config = {
-    powerBiUrl: 'POWER_BI_URL', // Will be replaced by the secret value
+    powerBiUrl: 'POWER_BI_URL',
     firebase: {
         apiKey: 'FIREBASE_API_KEY',
         authDomain: 'FIREBASE_AUTH_DOMAIN',
