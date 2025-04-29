@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <title>Power BI Report</title>
     <link rel="icon" type="image/png" href="icon.png">
-    <!-- Подключаем модульную версию Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth.js"></script>
     <script src="config.js"></script>
@@ -126,7 +125,7 @@
         // Проверяем, загрузился ли config.js
         if (typeof config === 'undefined') {
             console.error('config.js not loaded');
-            document.getElementById('debugInfo').textContent = 'Error: config.js not loaded';
+            document.getElementById('debugInfo').textContent = 'Error: config.js not loaded. Please check deployment settings.';
             throw new Error('config.js not loaded');
         }
 
@@ -143,7 +142,6 @@
             };
             console.log('Config summary:', configSummary);
             
-            // Показываем часть authDomain для проверки
             if (config.firebase && config.firebase.authDomain) {
                 document.getElementById('debugInfo').textContent = 
                     `Auth Domain: ${config.firebase.authDomain.substring(0, 8)}...`;
@@ -166,7 +164,7 @@
         } catch (e) {
             console.error('Firebase initialization error:', e);
             document.getElementById('debugInfo').textContent += '\nFirebase init error: ' + e.message;
-            throw e; // Прерываем выполнение, если Firebase не инициализирован
+            throw e;
         }
 
         // Отслеживаем изменение состояния аутентификации
