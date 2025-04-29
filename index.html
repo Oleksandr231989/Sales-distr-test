@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <title>Power BI Report</title>
     <link rel="icon" type="image/png" href="icon.png">
-    <!-- Load Firebase SDK scripts (updated to version 9.23.0) -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js"></script>
+    <!-- Load Firebase SDK scripts from unpkg as the primary source -->
+    <script src="https://unpkg.com/firebase@9.23.0/firebase-app.js" onerror="loadFirebaseFallback('app')"></script>
+    <script src="https://unpkg.com/firebase@9.23.0/firebase-auth.js" onerror="loadFirebaseFallback('auth')"></script>
     <!-- Load config.js -->
     <script src="config.js"></script>
     <style>
@@ -124,6 +124,19 @@
     </iframe>
 
     <script>
+        // Fallback function for Firebase scripts
+        function loadFirebaseFallback(type) {
+            console.error(`Failed to load firebase-${type}.js from unpkg. Attempting fallback...`);
+            const script = document.createElement('script');
+            script.src = `https://www.gstatic.com/firebasejs/9.23.0/firebase-${type}.js`;
+            script.onerror = () => {
+                console.error(`Fallback for firebase-${type}.js also failed. Please check network or CDN availability.`);
+                document.getElementById('debugInfo').textContent = 
+                    `Error: Firebase ${type} SDK not loaded. Please check network or CDN availability.`;
+            };
+            document.head.appendChild(script);
+        }
+
         // Wait for the DOM to load before running the script
         document.addEventListener('DOMContentLoaded', function() {
             // Check if Firebase SDK scripts loaded
@@ -133,14 +146,16 @@
                 // Debug: Log network errors for Firebase scripts
                 const scripts = ['firebase-app.js', 'firebase-auth.js'];
                 scripts.forEach(script => {
-                    fetch(`https://www.gstatic.com/firebasejs/9.23.0/${script}`)
+                    fetch(`https://unpkg.com/firebase@9.23.0/${script}`, { method: 'HEAD' })
                         .then(response => {
                             if (!response.ok) {
                                 console.error(`Failed to load ${script}: ${response.status} ${response.statusText}`);
+                            } else {
+                                console.log(`${script} is accessible`);
                             }
                         })
                         .catch(error => {
-                            console.error(`Network error loading ${script}:`, error);
+                            console.error(`Network error checking ${script}:`, error);
                         });
                 });
                 return;
