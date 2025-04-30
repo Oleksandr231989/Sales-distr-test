@@ -2,63 +2,40 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main  # Trigger on pushes to the main branch
+      - main
 
-# Add permissions for the GITHUB_TOKEN
 permissions:
-  contents: write  # Allows writing to the repository (needed for pushing to gh-pages)
-  pages: write     # Allows deploying to GitHub Pages
-  id-token: write  # Allows the token to be used for authentication
+  contents: write
+  pages: write
+  id-token: write
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      # Checkout the repository
       - name: Checkout
         uses: actions/checkout@v3
       
-      # Generate config.js with secrets
-      - name: Generate config.js
-        env:
-          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
-          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
-          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
-          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
-          POWER_BI_URL: ${{ secrets.POWER_BI_URL }}
+      - name: Create config.js from template
         run: |
-          echo "const config = {" > config.js
-          echo "  powerBiUrl: '$POWER_BI_URL'," >> config.js
-          echo "  firebase: {" >> config.js
-          echo "    apiKey: '$FIREBASE_API_KEY'," >> config.js
-          echo "    authDomain: '$FIREBASE_AUTH_DOMAIN'," >> config.js
-          echo "    projectId: '$FIREBASE_PROJECT_ID'," >> config.js
-          echo "    storageBucket: '$FIREBASE_STORAGE_BUCKET'," >> config.js
-          echo "    messagingSenderId: '$FIREBASE_MESSAGING_SENDER_ID'," >> config.js
-          echo "    appId: '$FIREBASE_APP_ID'" >> config.js
-          echo "  }" >> config.js
-          echo "};" >> config.js
+          cp config.js.template config.js
+          
+          # Replace placeholders with actual secrets
+          sed -i 's/##FIREBASE_API_KEY##/${{ secrets.FIREBASE_API_KEY }}/g' config.js
+          sed -i 's/##FIREBASE_AUTH_DOMAIN##/${{ secrets.FIREBASE_AUTH_DOMAIN }}/g' config.js
+          sed -i 's/##FIREBASE_PROJECT_ID##/${{ secrets.FIREBASE_PROJECT_ID }}/g' config.js
+          sed -i 's/##FIREBASE_STORAGE_BUCKET##/${{ secrets.FIREBASE_STORAGE_BUCKET }}/g' config.js
+          sed -i 's/##FIREBASE_MESSAGING_SENDER_ID##/${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}/g' config.js
+          sed -i 's/##FIREBASE_APP_ID##/${{ secrets.FIREBASE_APP_ID }}/g' config.js
+          sed -i 's/##POWER_BI_URL##/${{ secrets.POWER_BI_URL }}/g' config.js
+          
+          # Verify config file was created
+          echo "Config file created:"
+          cat config.js | grep -v apiKey
       
-      # Debug: Output config file (with sensitive info redacted)
-      - name: Debug config.js
-        run: |
-          echo "Config file structure:"
-          grep -v "apiKey\|appId" config.js
-          echo "Checking for empty values..."
-          grep -e "''," config.js || echo "No empty string values found"
-          echo "File size: $(wc -c < config.js) bytes"
-      
-      # Setup GitHub Pages deployment
-      - name: Setup Pages
-        uses: actions/configure-pages@v3
-        
-      # Deploy to GitHub Pages using the improved action
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./ 
+          publish_dir: ./
           force_orphan: true
-          commit_message: "Deploy to GitHub Pages [skip ci]"
