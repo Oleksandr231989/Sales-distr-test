@@ -1,3 +1,7 @@
+// Firebase and Power BI configuration
+// This file will be replaced during deployment with actual values
+// from GitHub secrets
+
 const config = {
     powerBiUrl: 'POWER_BI_URL',
     firebase: {
@@ -9,3 +13,9 @@ const config = {
         appId: 'FIREBASE_APP_ID'
     }
 };
+
+// Make configuration available to the page
+// Do not modify this line
+if (typeof module !== 'undefined') {
+    module.exports = config;
+}
