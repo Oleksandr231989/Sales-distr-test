@@ -2,13 +2,13 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Power BI Report</title>
+    <title>Power BI Report - Debug Version</title>
     <link rel="icon" type="image/png" href="icon.png">
-    <!-- Updated Firebase SDK script loading -->
+    <!-- Firebase SDK script loading -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <!-- Load config.js -->
-    <script src="config.js"></script>
+    <!-- Load config.js with defer attribute to ensure it loads before our script -->
+    <script src="config.js" defer></script>
     <style>
         body {
             margin: 0;
@@ -18,11 +18,7 @@
             display: flex;
             flex-direction: column;
             position: relative;
-            background-image: url('background.png');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
+            background-color: #f5f5f5;
         }
         #logoContainer {
             position: absolute;
@@ -37,10 +33,9 @@
             max-width: 300px;
             margin: 100px auto;
             padding: 20px;
-            border: 1px solid rgba(204, 204, 204, 0.5);
+            border: 1px solid #ccc;
             border-radius: 5px;
-            background-color: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(5px);
+            background-color: white;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         input {
@@ -77,7 +72,6 @@
             right: 20px;
             width: auto;
             padding: 8px 16px;
-            background-color: rgba(0, 123, 255, 0.9);
         }
         #errorMessage {
             color: #dc3545;
@@ -115,18 +109,29 @@
             white-space: pre-wrap;
             text-align: left;
         }
+        .debug-section {
+            margin-top: 5px;
+            padding: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
     </style>
 </head>
 <body>
     <div id="logoContainer">
-        <img id="logoImage" src="mayoly icon.png" alt="Mayoly Icon">
+        <img id="logoImage" src="mayoly icon.png" alt="Mayoly Icon" onerror="this.style.display='none'">
     </div>
 
     <div id="loginForm">
         <h2>Please enter your email and password</h2>
         <input type="email" id="email" placeholder="Email" required>
         <input type="password" id="password" placeholder="Password" required>
-        <button id="enterButton" onclick="login()">Enter</button>
+        <button id="enterButton">Enter</button>
         <div id="errorMessage">Incorrect login or password. Please try again or contact mayoly.reports@gmail.com</div>
         <div id="debugInfo"></div>
         
@@ -135,7 +140,7 @@
         <div id="detailedDebugInfo"></div>
     </div>
 
-    <button id="logoutButton" onclick="logout()" style="display: none;">Log out</button>
+    <button id="logoutButton" style="display: none;">Log out</button>
 
     <iframe 
         id="reportContainer" 
@@ -143,170 +148,200 @@
     </iframe>
 
     <script>
-        // Wait for the DOM to load before running the script
+        // Wait for the DOM to fully load
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, starting initialization');
+            console.log('DOM fully loaded');
+            document.getElementById('debugInfo').textContent = 'Loading application...';
+            
+            // We'll wait a moment to ensure config.js has loaded
+            setTimeout(initializeApp, 500);
+        });
+        
+        function initializeApp() {
+            console.log('Initializing application');
+            document.getElementById('debugInfo').textContent = 'Checking configuration...';
+            
+            // First, check if config is available
+            if (typeof config === 'undefined') {
+                handleError('Configuration not loaded. Check if config.js exists and is properly formatted.');
+                return;
+            }
+            
+            // Display config info (safely - not showing API keys)
+            console.log('Config loaded:', {
+                powerBiUrlDefined: !!config.powerBiUrl,
+                firebaseDefined: !!config.firebase
+            });
+            
+            // Check if the minimal Firebase config is available
+            if (!config.firebase || !config.firebase.apiKey || !config.firebase.authDomain || !config.firebase.projectId) {
+                handleError('Firebase configuration incomplete. Check your config.js file.');
+                return;
+            }
             
             // Set iframe source if config is available
-            if (typeof config !== 'undefined' && config.powerBiUrl) {
+            if (config.powerBiUrl) {
                 document.getElementById('reportContainer').src = config.powerBiUrl;
-            }
-            
-            // Initialize Firebase using the improved function
-            const auth = initializeFirebase();
-            
-            // Only proceed with auth monitoring if initialization succeeded
-            if (auth) {
-                // Monitor auth state changes
-                auth.onAuthStateChanged((user) => {
-                    console.log('Auth state changed:', user ? 'User signed in' : 'No user');
-                    if (user) {
-                        document.getElementById('loginForm').style.display = 'none';
-                        document.getElementById('reportContainer').style.display = 'block';
-                        document.getElementById('logoutButton').style.display = 'block';
-                        document.getElementById('logoContainer').style.display = 'none';
-                        console.log('User email:', user.email);
-                    } else {
-                        document.getElementById('loginForm').style.display = 'block';
-                        document.getElementById('reportContainer').style.display = 'none';
-                        document.getElementById('logoutButton').style.display = 'none';
-                        document.getElementById('logoContainer').style.display = 'block';
-                        document.getElementById('errorMessage').style.display = 'none';
-                    }
-                });
-
-                // Login function
-                window.login = function() {
-                    const email = document.getElementById('email').value;
-                    const password = document.getElementById('password').value;
-                    
-                    console.log('Login attempt with email:', email);
-                    document.getElementById('debugInfo').textContent = 'Attempting login...';
-
-                    auth.signInWithEmailAndPassword(email, password)
-                        .then((userCredential) => {
-                            console.log('Login successful:', userCredential.user.email);
-                            document.getElementById('errorMessage').style.display = 'none';
-                            document.getElementById('debugInfo').textContent = 'Login successful!';
-                        })
-                        .catch((error) => {
-                            console.error('Login error:', error.code, error.message);
-                            document.getElementById('errorMessage').style.display = 'block';
-                            document.getElementById('debugInfo').textContent = 
-                                `Login failed: ${error.code}`;
-                        });
-                };
-
-                // Logout function
-                window.logout = function() {
-                    console.log('Logout attempt');
-                    auth.signOut().then(() => {
-                        console.log('Logout successful');
-                    }).catch((error) => {
-                        console.error('Logout error:', error);
-                    });
-                };
             } else {
-                // Display login error if Firebase initialization failed
-                document.getElementById('enterButton').disabled = true;
-                document.getElementById('errorMessage').textContent = 'Cannot login: Firebase not initialized properly';
-                document.getElementById('errorMessage').style.display = 'block';
-            }
-
-            // Handle Enter key for login
-            document.addEventListener("keypress", function(event) {
-                if (event.key === "Enter" && !document.getElementById('enterButton').disabled) {
-                    document.getElementById("enterButton").click();
-                }
-            });
-        });
-
-        // Improved Firebase initialization function
-        function initializeFirebase() {
-            // Check if Firebase SDK is loaded
-            if (typeof firebase === 'undefined') {
-                console.error('Firebase SDK not loaded');
-                document.getElementById('debugInfo').textContent = 'Error: Firebase SDK not loaded';
-                return null;
-            }
-            
-            // Check if config is defined
-            if (typeof config === 'undefined' || !config.firebase) {
-                console.error('Firebase config not defined');
-                document.getElementById('debugInfo').textContent = 'Error: Firebase config not defined';
-                return null;
-            }
-            
-            // Check for required Firebase config values
-            const requiredFields = ['apiKey', 'authDomain', 'projectId'];
-            for (const field of requiredFields) {
-                if (!config.firebase[field]) {
-                    console.error(`Firebase config is missing required field: ${field}`);
-                    document.getElementById('debugInfo').textContent = `Error: Firebase config missing ${field}`;
-                    return null;
-                }
+                console.warn('Power BI URL not defined in config');
             }
             
             // Initialize Firebase
             try {
-                console.log('Initializing Firebase with config:', {
-                    authDomain: config.firebase.authDomain,
-                    projectId: config.firebase.projectId
-                });
+                console.log('Initializing Firebase with provided config');
+                document.getElementById('debugInfo').textContent = 'Initializing Firebase...';
                 
                 const firebaseApp = firebase.initializeApp(config.firebase);
                 const auth = firebase.auth(firebaseApp);
+                
                 console.log('Firebase initialized successfully');
-                return auth;
-            } catch (e) {
-                console.error('Firebase initialization error:', e);
-                document.getElementById('debugInfo').textContent = 'Firebase initialization error: ' + e.message;
-                return null;
+                document.getElementById('debugInfo').textContent = 'Firebase initialized successfully';
+                
+                // Set up auth state listener
+                setupAuthStateListener(auth);
+                
+                // Set up login/logout handlers
+                setupEventHandlers(auth);
+                
+            } catch (error) {
+                console.error('Firebase initialization error:', error);
+                handleError('Firebase initialization failed: ' + error.message);
             }
         }
-
-        // Debug button functionality
-        document.getElementById('debugButton').addEventListener('click', function() {
-            const debugInfo = document.getElementById('detailedDebugInfo');
-            if (debugInfo.style.display === 'none') {
-                // Collect debug information
-                let info = 'FIREBASE STATUS\n';
-                info += '- Firebase Loaded: ' + (typeof firebase !== 'undefined' ? 'Yes ✓' : 'No ✗') + '\n';
-                info += '- Config Loaded: ' + (typeof config !== 'undefined' ? 'Yes ✓' : 'No ✗') + '\n';
+        
+        function setupAuthStateListener(auth) {
+            auth.onAuthStateChanged((user) => {
+                console.log('Auth state changed:', user ? 'User signed in' : 'No user');
+                if (user) {
+                    document.getElementById('loginForm').style.display = 'none';
+                    document.getElementById('reportContainer').style.display = 'block';
+                    document.getElementById('logoutButton').style.display = 'block';
+                    document.getElementById('logoContainer').style.display = 'none';
+                    console.log('User email:', user.email);
+                } else {
+                    document.getElementById('loginForm').style.display = 'block';
+                    document.getElementById('reportContainer').style.display = 'none';
+                    document.getElementById('logoutButton').style.display = 'none'; 
+                    document.getElementById('logoContainer').style.display = 'block';
+                    document.getElementById('errorMessage').style.display = 'none';
+                }
+            });
+        }
+        
+        function setupEventHandlers(auth) {
+            // Login button handler
+            document.getElementById('enterButton').addEventListener('click', function() {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
                 
-                if (typeof config !== 'undefined') {
-                    info += '\nCONFIG VALUES\n';
-                    info += '- PowerBI URL defined: ' + (typeof config.powerBiUrl !== 'undefined' ? 'Yes ✓' : 'No ✗') + '\n';
-                    info += '- Firebase config defined: ' + (typeof config.firebase !== 'undefined' ? 'Yes ✓' : 'No ✗') + '\n';
-                    
-                    if (config.firebase) {
-                        info += '- Auth Domain: ' + (config.firebase.authDomain || 'Not defined') + '\n';
-                        info += '- Project ID: ' + (config.firebase.projectId || 'Not defined') + '\n';
-                        info += '- API Key defined: ' + (config.firebase.apiKey ? 'Yes ✓' : 'No ✗') + '\n';
-                    }
+                if (!email || !password) {
+                    document.getElementById('errorMessage').textContent = 'Please enter both email and password';
+                    document.getElementById('errorMessage').style.display = 'block';
+                    return;
                 }
                 
-                // Check which scripts are loaded
-                const scripts = Array.from(document.getElementsByTagName('script'));
-                info += '\nLOADED SCRIPTS\n';
-                scripts.forEach(script => {
-                    if (script.src) {
-                        info += '- ' + script.src + '\n';
-                    }
+                console.log('Login attempt with email:', email);
+                document.getElementById('debugInfo').textContent = 'Attempting login...';
+                
+                auth.signInWithEmailAndPassword(email, password)
+                    .then((userCredential) => {
+                        console.log('Login successful:', userCredential.user.email);
+                        document.getElementById('errorMessage').style.display = 'none';
+                        document.getElementById('debugInfo').textContent = 'Login successful!';
+                    })
+                    .catch((error) => {
+                        console.error('Login error:', error.code, error.message);
+                        document.getElementById('errorMessage').textContent = `Login error: ${error.message}`;
+                        document.getElementById('errorMessage').style.display = 'block';
+                        document.getElementById('debugInfo').textContent = `Login failed: ${error.code}`;
+                    });
+            });
+            
+            // Logout button handler
+            document.getElementById('logoutButton').addEventListener('click', function() {
+                console.log('Logout attempt');
+                auth.signOut().then(() => {
+                    console.log('Logout successful');
+                }).catch((error) => {
+                    console.error('Logout error:', error);
                 });
-                
-                // Browser info
-                info += '\nBROWSER INFO\n';
-                info += '- User Agent: ' + navigator.userAgent + '\n';
-                
-                debugInfo.textContent = info;
-                debugInfo.style.display = 'block';
-                this.textContent = 'Hide Debug Info';
-            } else {
-                debugInfo.style.display = 'none';
-                this.textContent = 'Show Debug Info';
-            }
-        });
+            });
+            
+            // Debug button handler
+            document.getElementById('debugButton').addEventListener('click', function() {
+                const debugInfo = document.getElementById('detailedDebugInfo');
+                if (debugInfo.style.display === 'none') {
+                    // Show debug info
+                    debugInfo.style.display = 'block';
+                    this.textContent = 'Hide Debug Info';
+                    
+                    // Collect and display debug information
+                    let info = '<div class="debug-section"><b>CONFIG STATUS</b><br>';
+                    info += 'Config object defined: ' + (typeof config !== 'undefined' ? '<span class="success">Yes ✓</span>' : '<span class="error">No ✗</span>') + '<br>';
+                    
+                    if (typeof config !== 'undefined') {
+                        info += 'PowerBI URL defined: ' + (config.powerBiUrl ? '<span class="success">Yes ✓</span>' : '<span class="error">No ✗</span>') + '<br>';
+                        info += 'Firebase config defined: ' + (config.firebase ? '<span class="success">Yes ✓</span>' : '<span class="error">No ✗</span>') + '<br>';
+                        
+                        if (config.firebase) {
+                            info += 'API Key defined: ' + (config.firebase.apiKey ? '<span class="success">Yes ✓</span>' : '<span class="error">No ✗</span>') + '<br>';
+                            info += 'Auth Domain defined: ' + (config.firebase.authDomain ? '<span class="success">Yes ✓</span>' : '<span class="error">No ✗</span>') + '<br>';
+                            info += 'Project ID defined: ' + (config.firebase.projectId ? '<span class="success">Yes ✓</span>' : '<span class="error">No ✗</span>') + '<br>';
+                            
+                            // Check for suspicious placeholder values
+                            const apiKeyPlaceholder = config.firebase.apiKey === 'FIREBASE_API_KEY' || 
+                                                     config.firebase.apiKey === '${FIREBASE_API_KEY}';
+                            if (apiKeyPlaceholder) {
+                                info += '<span class="error">WARNING: API Key appears to be a placeholder!</span><br>';
+                            }
+                        }
+                    }
+                    info += '</div>';
+                    
+                    // Firebase status
+                    info += '<div class="debug-section"><b>FIREBASE STATUS</b><br>';
+                    info += 'Firebase SDK Loaded: ' + (typeof firebase !== 'undefined' ? '<span class="success">Yes ✓</span>' : '<span class="error">No ✗</span>') + '<br>';
+                    info += '</div>';
+                    
+                    // Check which scripts are loaded
+                    const scripts = Array.from(document.getElementsByTagName('script'));
+                    info += '<div class="debug-section"><b>LOADED SCRIPTS</b><br>';
+                    scripts.forEach(script => {
+                        if (script.src) {
+                            info += '- ' + script.src + '<br>';
+                        }
+                    });
+                    info += '</div>';
+                    
+                    // Browser info
+                    info += '<div class="debug-section"><b>BROWSER INFO</b><br>';
+                    info += 'User Agent: ' + navigator.userAgent + '<br>';
+                    info += 'Current URL: ' + window.location.href + '<br>';
+                    info += '</div>';
+                    
+                    debugInfo.innerHTML = info;
+                } else {
+                    // Hide debug info
+                    debugInfo.style.display = 'none';
+                    this.textContent = 'Show Debug Info';
+                }
+            });
+            
+            // Handle Enter key for login
+            document.addEventListener("keypress", function(event) {
+                if (event.key === "Enter") {
+                    document.getElementById("enterButton").click();
+                }
+            });
+        }
+        
+        function handleError(message) {
+            console.error(message);
+            document.getElementById('debugInfo').textContent = message;
+            document.getElementById('enterButton').disabled = true;
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+        }
     </script>
 </body>
 </html>
