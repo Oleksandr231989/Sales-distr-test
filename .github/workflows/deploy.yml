@@ -16,28 +16,61 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       
-      - name: Replace placeholders in config.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+      
+      - name: Replace placeholders with Node.js
         run: |
-          # Create a backup of the original config.js
-          cp config.js config.js.backup
-          
-          # Replace each placeholder with the corresponding secret
-          sed -i 's/##FIREBASE_API_KEY##/${{ secrets.FIREBASE_API_KEY }}/g' config.js
-          sed -i 's/##FIREBASE_AUTH_DOMAIN##/${{ secrets.FIREBASE_AUTH_DOMAIN }}/g' config.js
-          sed -i 's/##FIREBASE_PROJECT_ID##/${{ secrets.FIREBASE_PROJECT_ID }}/g' config.js
-          sed -i 's/##FIREBASE_STORAGE_BUCKET##/${{ secrets.FIREBASE_STORAGE_BUCKET }}/g' config.js
-          sed -i 's/##FIREBASE_MESSAGING_SENDER_ID##/${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}/g' config.js
-          sed -i 's/##FIREBASE_APP_ID##/${{ secrets.FIREBASE_APP_ID }}/g' config.js
-          sed -i 's/##POWER_BI_URL##/${{ secrets.POWER_BI_URL }}/g' config.js
-          
-          # For debugging - Check if placeholders were replaced (without showing sensitive values)
-          echo "Checking for remaining placeholders in config.js:"
-          grep '##' config.js || echo "No placeholders remain - good!"
-          
-          # Verify file was modified
-          echo "File size comparison:"
-          wc -c config.js.backup
-          wc -c config.js
+          node -e "
+            const fs = require('fs');
+            
+            // Read the config template
+            const configTemplate = fs.readFileSync('config.js', 'utf8');
+            
+            // Create a new config with the environment variables
+            const newConfig = configTemplate
+              .replace(/##FIREBASE_API_KEY##/g, process.env.FIREBASE_API_KEY)
+              .replace(/##FIREBASE_AUTH_DOMAIN##/g, process.env.FIREBASE_AUTH_DOMAIN)
+              .replace(/##FIREBASE_PROJECT_ID##/g, process.env.FIREBASE_PROJECT_ID)
+              .replace(/##FIREBASE_STORAGE_BUCKET##/g, process.env.FIREBASE_STORAGE_BUCKET)
+              .replace(/##FIREBASE_MESSAGING_SENDER_ID##/g, process.env.FIREBASE_MESSAGING_SENDER_ID)
+              .replace(/##FIREBASE_APP_ID##/g, process.env.FIREBASE_APP_ID)
+              .replace(/##POWER_BI_URL##/g, process.env.POWER_BI_URL);
+            
+            // Write the new config
+            fs.writeFileSync('config.js', newConfig);
+            
+            // Log success message (without exposing sensitive info)
+            console.log('Config file updated successfully');
+            console.log('Looking for any remaining placeholders...');
+            
+            if (newConfig.includes('##')) {
+              console.log('Warning: Some placeholders remain in the config file');
+              // Find which placeholders remain, but don't output sensitive info
+              const placeholders = newConfig.match(/##[A-Z_]+##/g);
+              if (placeholders) {
+                console.log('Remaining placeholders: ' + placeholders.join(', '));
+              }
+            } else {
+              console.log('Success: All placeholders were replaced');
+            }
+            
+            // Compare file sizes as a basic check
+            const originalSize = configTemplate.length;
+            const newSize = newConfig.length;
+            console.log(`Original file size: ${originalSize} bytes`);
+            console.log(`New file size: ${newSize} bytes`);
+          "
+        env:
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          POWER_BI_URL: ${{ secrets.POWER_BI_URL }}
       
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
@@ -45,4 +78,3 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
           force_orphan: true
-          exclude_assets: '.github,config.js.backup'
