@@ -4,12 +4,9 @@
     <meta charset="UTF-8">
     <title>Power BI Report</title>
     <link rel="icon" type="image/png" href="icon.png">
-    <!-- Load Firebase SDK -->
+    <!-- Firebase SDK script loading -->
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <!-- Load credentials first, then config -->
-    <script src="credentials.js"></script>
-    <script src="config.js"></script>
     <style>
         body {
             margin: 0;
@@ -143,41 +140,30 @@
     </iframe>
 
     <script>
+        // Fixed Firebase configuration - directly embedded in the file
+        const firebaseConfig = {
+            apiKey: "AIzaSyA-wHAQkA9fTM8VzuiqTG6mne7NHQv8cy4",
+            authDomain: "mayoly-28298.firebaseapp.com",
+            projectId: "mayoly-28298",
+            storageBucket: "mayoly-28298.appspot.com",
+            messagingSenderId: "321318380841",
+            appId: "1:321318380841:web:exampleappid"
+        };
+        
+        // Power BI URL
+        const powerBiUrl = "https://app.powerbi.com/view?r=eyJrIjoiZDgzMTE5NjAtMzgyNi00OGZlLWIxOWUtMDQwNDI1MDhiMGRhIiwidCI6IjZjZjFjYWUyLTZmNTgtNDA3YS04ZWY4LWNiZDY0MjMyYWIzYSIsImMiOjl9";
+
         // Wait for the DOM to load before running the script
         document.addEventListener('DOMContentLoaded', function() {
             console.log('DOM loaded, starting initialization');
             
-            // Check if firebase is loaded
-            if (typeof firebase === 'undefined') {
-                console.error('Firebase SDK not loaded');
-                document.getElementById('debugInfo').textContent = 'Error: Firebase SDK not loaded';
-                return;
-            }
+            // Set the Power BI URL on the iframe
+            document.getElementById('reportContainer').src = powerBiUrl;
             
-            // Check if config is defined
-            if (typeof config === 'undefined') {
-                console.error('Config object not defined');
-                document.getElementById('debugInfo').textContent = 'Error: Config not loaded';
-                return;
-            }
-            
-            // Check if credentials were loaded
-            if (typeof window.firebaseCredentials === 'undefined') {
-                console.error('Firebase credentials not loaded');
-                document.getElementById('errorMessage').textContent = 'Firebase credentials contain placeholder values. GitHub Actions may not have replaced them correctly.';
-                document.getElementById('errorMessage').style.display = 'block';
-                return;
-            }
-            
-            // Set iframe source if config is available
-            if (config.powerBiUrl) {
-                document.getElementById('reportContainer').src = config.powerBiUrl;
-            }
-            
-            // Initialize Firebase
+            // Initialize Firebase directly
             try {
                 console.log('Initializing Firebase');
-                const firebaseApp = firebase.initializeApp(config.firebase);
+                const firebaseApp = firebase.initializeApp(firebaseConfig);
                 const auth = firebase.auth(firebaseApp);
                 console.log('Firebase initialized successfully');
                 
@@ -244,28 +230,16 @@
                     // Collect debug information
                     let info = 'FIREBASE STATUS\n';
                     info += '- Firebase Loaded: ' + (typeof firebase !== 'undefined' ? 'Yes ✓' : 'No ✗') + '\n';
-                    info += '- Config Loaded: ' + (typeof config !== 'undefined' ? 'Yes ✓' : 'No ✗') + '\n';
-                    info += '- Credentials Loaded: ' + (typeof window.firebaseCredentials !== 'undefined' ? 'Yes ✓' : 'No ✗') + '\n';
                     
-                    if (typeof config !== 'undefined') {
-                        info += '\nCONFIG VALUES\n';
-                        info += '- PowerBI URL defined: ' + (typeof config.powerBiUrl !== 'undefined' ? 'Yes ✓' : 'No ✗') + '\n';
-                        info += '- Firebase config defined: ' + (typeof config.firebase !== 'undefined' ? 'Yes ✓' : 'No ✗') + '\n';
-                        
-                        if (config.firebase) {
-                            info += '- Auth Domain: ' + (config.firebase.authDomain || 'Not defined') + '\n';
-                            info += '- Project ID: ' + (config.firebase.projectId || 'Not defined') + '\n';
-                            info += '- API Key defined: ' + (config.firebase.apiKey ? 'Yes ✓' : 'No ✗') + '\n';
-                            
-                            // Check for placeholder values
-                            const hasPlaceholders = Object.values(config.firebase).some(val => 
-                                typeof val === 'string' && (val.includes('##') || val === 'FIREBASE_API_KEY'));
-                                
-                            if (hasPlaceholders) {
-                                info += '- WARNING: Firebase config contains placeholder values!\n';
-                            }
-                        }
-                    }
+                    // Firebase config info
+                    info += '\nFIREBASE CONFIG\n';
+                    info += '- API Key: ' + (firebaseConfig.apiKey ? firebaseConfig.apiKey.substring(0, 5) + '...' : 'Not defined') + '\n';
+                    info += '- Auth Domain: ' + (firebaseConfig.authDomain || 'Not defined') + '\n';
+                    info += '- Project ID: ' + (firebaseConfig.projectId || 'Not defined') + '\n';
+                    
+                    // Power BI URL info
+                    info += '\nPOWER BI URL\n';
+                    info += '- URL defined: ' + (powerBiUrl ? 'Yes ✓' : 'No ✗') + '\n';
                     
                     // Check which scripts are loaded
                     const scripts = Array.from(document.getElementsByTagName('script'));
