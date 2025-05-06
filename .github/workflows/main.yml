@@ -1,0 +1,107 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 🛎️
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: |
+          npm init -y
+          npm install dotenv
+
+      - name: Create build script
+        run: |
+          cat > build.js << 'EOL'
+          const fs = require('fs');
+          const path = require('path');
+          
+          // Створюємо dist директорію
+          if (!fs.existsSync('dist')) {
+              fs.mkdirSync('dist');
+          }
+          
+          // Зчитуємо вміст HTML-файлу
+          let indexContent = fs.readFileSync('index.html', 'utf8');
+          
+          // Створюємо конфіг з змінних середовища
+          const runtimeConfig = {
+              powerBiUrl: process.env.POWER_BI_URL,
+              firebase: {
+                  apiKey: process.env.FIREBASE_API_KEY,
+                  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+                  projectId: process.env.FIREBASE_PROJECT_ID,
+                  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+                  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+                  appId: process.env.FIREBASE_APP_ID
+              }
+          };
+          
+          // Заміна посилання на config.js на вбудовану конфігурацію
+          const configScriptTag = '<script src="config.js"></script>';
+          const inlineConfigScript = `<script>
+          const config = ${JSON.stringify(runtimeConfig, null, 2)};
+          </script>`;
+          
+          indexContent = indexContent.replace(configScriptTag, inlineConfigScript);
+          
+          // Записуємо змінений HTML у папку dist
+          fs.writeFileSync(path.join('dist', 'index.html'), indexContent);
+          
+          // Копіюємо інші необхідні файли
+          try {
+              if (fs.existsSync('icon.png')) {
+                  fs.copyFileSync('icon.png', path.join('dist', 'icon.png'));
+              }
+              if (fs.existsSync('background.png')) {
+                  fs.copyFileSync('background.png', path.join('dist', 'background.png'));
+              }
+              if (fs.existsSync('mayoly icon.png')) {
+                  fs.copyFileSync('mayoly icon.png', path.join('dist', 'mayoly icon.png'));
+              }
+          } catch (err) {
+              console.error('Error copying assets:', err);
+          }
+          
+          // Копіюємо CNAME файл для власного домену
+          try {
+              if (fs.existsSync('CNAME.txt')) {
+                  fs.writeFileSync(path.join('dist', 'CNAME'), fs.readFileSync('CNAME.txt', 'utf8'));
+              } else if (fs.existsSync('CNAME')) {
+                  fs.copyFileSync('CNAME', path.join('dist', 'CNAME'));
+              }
+          } catch (err) {
+              console.error('Error copying CNAME:', err);
+          }
+          
+          console.log('Збірка завершена!');
+          EOL
+
+      - name: Build
+        run: node build.js
+        env:
+          POWER_BI_URL: ${{ secrets.POWER_BI_URL }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@4.1.4
+        with:
+          branch: gh-pages
+          folder: dist
