@@ -1,0 +1,12 @@
+{
+  "name": "powerbi-report",
+  "version": "1.0.0",
+  "description": "Power BI Report with secure authentication",
+  "main": "build.js",
+  "scripts": {
+    "build": "node build.js",
+    "vercel-build": "node build.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
