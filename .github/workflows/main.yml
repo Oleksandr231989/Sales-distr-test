@@ -52,15 +52,27 @@ jobs:
           };
           
           // Заміна посилання на config.js на вбудовану конфігурацію
+          // Шукаємо відповідний тег скрипта
           const configScriptTag = '<script src="config.js"></script>';
+          // Створюємо вбудований скрипт з конфігурацією
           const inlineConfigScript = `<script>
           const config = ${JSON.stringify(runtimeConfig, null, 2)};
           </script>`;
           
-          indexContent = indexContent.replace(configScriptTag, inlineConfigScript);
+          // Виконуємо заміну
+          if (indexContent.includes(configScriptTag)) {
+              indexContent = indexContent.replace(configScriptTag, inlineConfigScript);
+              console.log('Config script successfully replaced');
+          } else {
+              console.error('Could not find config script tag in HTML!');
+              // Додаємо вбудований скрипт перед закриваючим тегом head
+              indexContent = indexContent.replace('</head>', inlineConfigScript + '</head>');
+              console.log('Added config script before closing head tag');
+          }
           
           // Записуємо змінений HTML у папку dist
           fs.writeFileSync(path.join('dist', 'index.html'), indexContent);
+          console.log('Updated index.html written to dist folder');
           
           // Копіюємо інші необхідні файли
           try {
