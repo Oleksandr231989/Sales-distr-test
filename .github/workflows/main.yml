@@ -24,7 +24,24 @@ jobs:
           npm init -y
           npm install dotenv
 
-      - name: Create build script
+      - name: Set environment variables
+        run: |
+          # Debugging output to see if variables are set
+          if [ ! -z "${{ secrets.POWER_BI_URL }}" ]; then 
+            echo "POWER_BI_URL secret is set"
+          elif [ ! -z "${{ secrets.POWERBI_URL }}" ]; then
+            echo "POWERBI_URL secret is set"
+          else
+            echo "Warning: Neither POWER_BI_URL nor POWERBI_URL secrets are set"
+          fi
+          
+          if [ ! -z "${{ secrets.FIREBASE_API_KEY }}" ]; then 
+            echo "FIREBASE_API_KEY secret is set"
+          else
+            echo "Warning: FIREBASE_API_KEY secret is not set"
+          fi
+
+      - name: Create and Run Build Script
         run: |
           cat > build.js << 'EOL'
           const fs = require('fs');
@@ -40,73 +57,101 @@ jobs:
           
           // Створюємо конфіг з змінних середовища
           const runtimeConfig = {
-              powerBiUrl: process.env.POWER_BI_URL,
+              powerBiUrl: process.env.POWER_BI_URL || process.env.POWERBI_URL || "PLACEHOLDER_POWERBI_URL",
               firebase: {
-                  apiKey: process.env.FIREBASE_API_KEY,
-                  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-                  projectId: process.env.FIREBASE_PROJECT_ID,
-                  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-                  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-                  appId: process.env.FIREBASE_APP_ID
+                  apiKey: process.env.FIREBASE_API_KEY || "PLACEHOLDER_API_KEY",
+                  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "PLACEHOLDER_AUTH_DOMAIN",
+                  projectId: process.env.FIREBASE_PROJECT_ID || "PLACEHOLDER_PROJECT_ID",
+                  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "PLACEHOLDER_STORAGE_BUCKET",
+                  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "PLACEHOLDER_MESSAGING_SENDER_ID",
+                  appId: process.env.FIREBASE_APP_ID || "PLACEHOLDER_APP_ID"
               }
           };
           
-          // Заміна посилання на config.js на вбудовану конфігурацію
-          // Шукаємо відповідний тег скрипта
-          const configScriptTag = '<script src="config.js"></script>';
-          // Створюємо вбудований скрипт з конфігурацією
+          // Додаємо логування для діагностики
+          console.log("Power BI URL from env:", process.env.POWER_BI_URL || process.env.POWERBI_URL || "Not set");
+          console.log("Firebase API Key from env:", process.env.FIREBASE_API_KEY || "Not set");
+          
+          // Створюємо інлайн конфігурацію з чіткими значеннями для відладки
+          const configObj = {
+              powerBiUrl: process.env.POWER_BI_URL || process.env.POWERBI_URL || "PLACEHOLDER_POWERBI_URL",
+              firebase: {
+                  apiKey: process.env.FIREBASE_API_KEY || "PLACEHOLDER_API_KEY",
+                  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "PLACEHOLDER_AUTH_DOMAIN",
+                  projectId: process.env.FIREBASE_PROJECT_ID || "PLACEHOLDER_PROJECT_ID",
+                  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "PLACEHOLDER_STORAGE_BUCKET",
+                  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "PLACEHOLDER_MESSAGING_SENDER_ID",
+                  appId: process.env.FIREBASE_APP_ID || "PLACEHOLDER_APP_ID"
+              }
+          };
+          
           const inlineConfigScript = `<script>
-          const config = ${JSON.stringify(runtimeConfig, null, 2)};
+          // Inline configuration injected during build
+          const config = ${JSON.stringify(configObj, null, 2)};
+          console.log("Config loaded:", config);
           </script>`;
           
-          // Виконуємо заміну
-          if (indexContent.includes(configScriptTag)) {
-              indexContent = indexContent.replace(configScriptTag, inlineConfigScript);
-              console.log('Config script successfully replaced');
-          } else {
-              console.error('Could not find config script tag in HTML!');
-              // Додаємо вбудований скрипт перед закриваючим тегом head
-              indexContent = indexContent.replace('</head>', inlineConfigScript + '</head>');
-              console.log('Added config script before closing head tag');
+          // Спочатку перевіряємо стандартний тег
+          if (indexContent.includes('<script src="config.js"></script>')) {
+              indexContent = indexContent.replace('<script src="config.js"></script>', inlineConfigScript);
+              console.log("Config script tag replaced successfully");
+          } 
+          // Також перевіряємо інші можливі варіанти
+          else if (indexContent.includes("<script src='config.js'></script>")) {
+              indexContent = indexContent.replace("<script src='config.js'></script>", inlineConfigScript);
+              console.log("Config script tag with single quotes replaced");
+          }
+          else if (indexContent.includes('<script src="./config.js"></script>')) {
+              indexContent = indexContent.replace('<script src="./config.js"></script>', inlineConfigScript);
+              console.log("Config script tag with ./ replaced");
+          }
+          // Якщо не знайшли, додаємо перед закриттям head
+          else {
+              indexContent = indexContent.replace('</head>', inlineConfigScript + '\n</head>');
+              console.log("Config script added before </head> as fallback");
           }
           
           // Записуємо змінений HTML у папку dist
           fs.writeFileSync(path.join('dist', 'index.html'), indexContent);
-          console.log('Updated index.html written to dist folder');
+          console.log("HTML file saved with injected config");
           
           // Копіюємо інші необхідні файли
-          try {
-              if (fs.existsSync('icon.png')) {
-                  fs.copyFileSync('icon.png', path.join('dist', 'icon.png'));
+          const filesToCopy = [
+            'icon.png', 
+            'background.png', 
+            'mayoly icon.png'
+          ];
+          
+          for (const file of filesToCopy) {
+            try {
+              if (fs.existsSync(file)) {
+                fs.copyFileSync(file, path.join('dist', file));
+                console.log(`Copied: ${file}`);
+              } else {
+                console.log(`File not found, skipping: ${file}`);
               }
-              if (fs.existsSync('background.png')) {
-                  fs.copyFileSync('background.png', path.join('dist', 'background.png'));
-              }
-              if (fs.existsSync('mayoly icon.png')) {
-                  fs.copyFileSync('mayoly icon.png', path.join('dist', 'mayoly icon.png'));
-              }
-          } catch (err) {
-              console.error('Error copying assets:', err);
+            } catch (err) {
+              console.error(`Error copying ${file}:`, err);
+            }
           }
           
-          // Копіюємо CNAME файл для власного домену
-          try {
-              if (fs.existsSync('CNAME.txt')) {
-                  fs.writeFileSync(path.join('dist', 'CNAME'), fs.readFileSync('CNAME.txt', 'utf8'));
-              } else if (fs.existsSync('CNAME')) {
-                  fs.copyFileSync('CNAME', path.join('dist', 'CNAME'));
-              }
-          } catch (err) {
-              console.error('Error copying CNAME:', err);
+          // Копіюємо CNAME файл
+          if (fs.existsSync('CNAME.txt')) {
+            fs.writeFileSync(path.join('dist', 'CNAME'), fs.readFileSync('CNAME.txt', 'utf8'));
+            console.log("CNAME copied from CNAME.txt");
+          } else if (fs.existsSync('CNAME')) {
+            fs.copyFileSync('CNAME', path.join('dist', 'CNAME'));
+            console.log("CNAME file copied");
           }
           
-          console.log('Збірка завершена!');
+          console.log("Build completed!");
           EOL
-
-      - name: Build
-        run: node build.js
+          
+          # Виконуємо скрипт з відображенням всіх логів
+          node build.js
         env:
           POWER_BI_URL: ${{ secrets.POWER_BI_URL }}
+          POWERBI_URL: ${{ secrets.POWERBI_URL }}
           FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
           FIREBASE_AUTH_DOMAIN: ${{ secrets.FIREBASE_AUTH_DOMAIN }}
           FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
