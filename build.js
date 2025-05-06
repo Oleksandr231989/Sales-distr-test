@@ -18,7 +18,7 @@ htmlContent = htmlContent.replace(/{{FIREBASE_STORAGE_BUCKET}}/g, process.env.FI
 htmlContent = htmlContent.replace(/{{FIREBASE_MESSAGING_SENDER_ID}}/g, process.env.FIREBASE_MESSAGING_SENDER_ID || '');
 htmlContent = htmlContent.replace(/{{FIREBASE_APP_ID}}/g, process.env.FIREBASE_APP_ID || '');
 
-// Зберігаємо оновлений HTML
+// Зберігаємо оновлений HTML у папку dist
 fs.writeFileSync(path.join('dist', 'index.html'), htmlContent);
 console.log('index.html processed and saved to dist/');
 
@@ -42,18 +42,4 @@ for (const file of filesToCopy) {
     }
 }
 
-// Перевірка та копіювання CNAME файлу, якщо він існує
-if (fs.existsSync('CNAME.txt')) {
-    fs.writeFileSync(path.join('dist', 'CNAME'), fs.readFileSync('CNAME.txt', 'utf8'));
-    console.log('CNAME.txt copied to dist/CNAME');
-} else if (fs.existsSync('CNAME')) {
-    fs.copyFileSync('CNAME', path.join('dist', 'CNAME'));
-    console.log('CNAME file copied to dist/');
-}
-
 console.log('Build completed successfully!');
-
-// Повертаємо 200 OK для Vercel
-module.exports = (req, res) => {
-    res.status(200).send('Build completed');
-};
